@@ -9,9 +9,26 @@ files:
   - "!**/.vscode/*"
   - "!{tsconfig.json,tsconfig.node.json,electron.vite.config.ts}"
 asar: true
+
 win:
-  target: nsis
+  target:
+    - target: nsis
+      arch:
+        - x64
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64

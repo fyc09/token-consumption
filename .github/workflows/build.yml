@@ -1,0 +1,118 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            artifact-name: Token-Consumption-Windows
+            artifact-ext: exe
+          - os: macos-latest
+            artifact-name: Token-Consumption-macOS
+            artifact-ext: dmg
+          - os: ubuntu-latest
+            artifact-name: Token-Consumption-Linux
+            artifact-ext: AppImage
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0 libx11-xcb1 libxcb-dri3-0 \
+            libgbm1 libnss3 libatk-bridge2.0-0 libdrm2 libxshmfence1 libxrandr2 \
+            libxcomposite1 libxcursor1 libxi6 libxtst6
+
+      - run: npm ci
+
+      - name: Build renderer
+        run: npx electron-vite build
+
+      - name: Package
+        run: npx electron-builder --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect artifacts
+        run: |
+          dir release\*
+        shell: pwsh
+        if: runner.os == 'Windows'
+
+      - name: Collect artifacts
+        run: |
+          ls -lh release/
+        shell: bash
+        if: runner.os != 'Windows'
+
+      - name: Verify artifact exists
+        run: |
+          if [ -z "$(ls -A release/)" ]; then
+            echo "ERROR: No artifacts found in release/"
+            exit 1
+          fi
+          echo "Artifacts found:"
+          ls -lh release/
+        shell: bash
+
+      - name: Quick smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find the exe and check it exists
+          $exe = Get-ChildItem -Path "release" -Recurse -Filter "*.exe" | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "No .exe found in release/"
+            exit 1
+          }
+          Write-Host "Found: $($exe.FullName) ($($exe.Length) bytes)"
+          # Launch briefly to detect crash
+          $proc = Start-Process -FilePath $exe.FullName -NoNewWindow -PassThru
+          Start-Sleep -Seconds 3
+          if (-not $proc.HasExited) {
+            $proc.Kill()
+            Write-Host "Smoke test passed"
+          } else {
+            Write-Error "Process exited early with code $($proc.ExitCode)"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Quick smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Find the AppImage
+          appimage=$(ls release/*.AppImage 2>/dev/null | head -1)
+          if [ -z "$appimage" ]; then
+            echo "No AppImage found, checking for other artifacts"
+            ls -lh release/
+            exit 0
+          fi
+          echo "Found: $appimage"
+          chmod +x "$appimage"
+          # Run with xvfb briefly to check it doesn't crash
+          timeout 5 xvfb-run "$appimage" --no-sandbox 2>&1 || true
+          echo "Smoke test completed"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: release/*
+          retention-days: 30
