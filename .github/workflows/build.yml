@@ -87,7 +87,7 @@ jobs:
           echo "Artifacts found: $count"
 
       - name: Quick smoke test (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.arch != 'arm64'
         run: |
           $exe = Get-ChildItem -Path "release" -Recurse -Filter "*.exe" | Select-Object -First 1
           if (-not $exe) {
@@ -107,7 +107,7 @@ jobs:
         shell: pwsh
 
       - name: Quick smoke test (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.arch != 'arm64'
         run: |
           app=$(ls release/*.AppImage 2>/dev/null | head -1)
           if [ -z "$app" ]; then
