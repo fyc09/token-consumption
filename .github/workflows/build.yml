@@ -126,13 +126,14 @@ jobs:
           path: |
             release/*.exe
             release/*.zip
-            release/linux-unpacked
-            release/linux-arm64-unpacked
+            release/*.AppImage
             !release/builder-debug.yml
             !release/win-unpacked
             !release/win-arm64-unpacked
             !release/mac-unpacked
             !release/mac-arm64-unpacked
+            !release/linux-unpacked
+            !release/linux-arm64-unpacked
           retention-days: 30
 
   release:

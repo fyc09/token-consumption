@@ -17,4 +17,4 @@ mac:
   target: zip
 
 linux:
-  target: dir
+  target: AppImage
