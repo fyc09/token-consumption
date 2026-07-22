@@ -74,8 +74,10 @@ jobs:
 
       - name: Collect artifacts
         run: ls -lh release/
+        shell: bash
 
       - name: Verify artifact exists
+        shell: bash
         run: |
           count=$(ls release/ | wc -l)
           if [ "$count" -eq 0 ]; then
