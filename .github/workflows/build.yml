@@ -117,5 +117,7 @@ jobs:
         if: always()
         with:
           name: ${{ matrix.artifact-name }}
-          path: release/*
+          path: |
+            release/*
+            !release/builder-debug.yml
           retention-days: 30
