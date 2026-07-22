@@ -9,8 +9,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "package": "electron-vite build && electron-builder --win",
-    "postinstall": "electron-builder install-app-deps"
+    "package": "electron-vite build && electron-builder --win"
   },
   "dependencies": {
     "vue": "^3.4.0",

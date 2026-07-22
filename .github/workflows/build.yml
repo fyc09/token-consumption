@@ -42,6 +42,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Rebuild native deps for Electron
+        run: npx electron-builder install-app-deps
+
       - name: Build renderer
         run: npx electron-vite build
 
