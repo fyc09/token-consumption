@@ -12,23 +12,19 @@ asar: true
 
 win:
   target:
-    - target: nsis
+    - target: portable
       arch:
         - x64
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
 
 mac:
   target:
-    - target: dmg
+    - target: zip
       arch:
         - x64
         - arm64
 
 linux:
   target:
-    - target: AppImage
+    - target: dir
       arch:
         - x64
