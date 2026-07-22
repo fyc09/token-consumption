@@ -124,8 +124,15 @@ jobs:
         with:
           name: ${{ matrix.artifact-name }}
           path: |
-            release/*
+            release/*.exe
+            release/*.zip
+            release/linux-unpacked
+            release/linux-arm64-unpacked
             !release/builder-debug.yml
+            !release/win-unpacked
+            !release/win-arm64-unpacked
+            !release/mac-unpacked
+            !release/mac-arm64-unpacked
           retention-days: 30
 
   release:
