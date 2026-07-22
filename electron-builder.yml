@@ -1,0 +1,17 @@
+appId: com.user.token-consumption
+productName: Token Consumption
+directories:
+  output: release
+  buildResources: build
+files:
+  - "out/**/*"
+  - "package.json"
+  - "!**/.vscode/*"
+  - "!{tsconfig.json,tsconfig.node.json,electron.vite.config.ts}"
+asar: true
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
