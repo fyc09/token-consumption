@@ -9,6 +9,7 @@ files:
   - "!**/.vscode/*"
   - "!{tsconfig.json,tsconfig.node.json,electron.vite.config.ts}"
 asar: true
+artifactName: "${productName}-${version}-${platform}-${arch}.${ext}"
 
 win:
   target: portable
