@@ -2,7 +2,8 @@
 
 实时聚合 **pi** 和 **opencode** 两个 AI coding agent 的 token 消耗统计。
 
-![截图](screenshot.png)
+![主页仪表盘](screenshot.png)
+![详情弹窗](screenshot-detail.png)
 
 ## 功能
 
