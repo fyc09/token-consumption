@@ -11,17 +11,36 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
         include:
           - os: windows-latest
-            artifact-name: Token-Consumption-Windows
+            arch: x64
             artifact-ext: exe
+            artifact-name: Token-Consumption-Windows-x64
+            builder-flags: --win --x64
+
+          - os: windows-latest
+            arch: arm64
+            artifact-ext: exe
+            artifact-name: Token-Consumption-Windows-arm64
+            builder-flags: --win --arm64
+
           - os: macos-latest
+            arch: universal
+            artifact-ext: zip
             artifact-name: Token-Consumption-macOS
-            artifact-ext: dmg
+            builder-flags: --mac --universal
+
           - os: ubuntu-latest
-            artifact-name: Token-Consumption-Linux
+            arch: x64
             artifact-ext: AppImage
+            artifact-name: Token-Consumption-Linux-x64
+            builder-flags: --linux --x64
+
+          - os: ubuntu-latest
+            arch: arm64
+            artifact-ext: AppImage
+            artifact-name: Token-Consumption-Linux-arm64
+            builder-flags: --linux --arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -49,43 +68,31 @@ jobs:
         run: npx electron-vite build
 
       - name: Package
-        run: npx electron-builder --publish=never
+        run: npx electron-builder --publish=never ${{ matrix.builder-flags }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Collect artifacts
-        run: |
-          dir release\*
-        shell: pwsh
-        if: runner.os == 'Windows'
-
-      - name: Collect artifacts
-        run: |
-          ls -lh release/
-        shell: bash
-        if: runner.os != 'Windows'
+        run: ls -lh release/
 
       - name: Verify artifact exists
         run: |
-          if [ -z "$(ls -A release/)" ]; then
+          count=$(ls release/ | wc -l)
+          if [ "$count" -eq 0 ]; then
             echo "ERROR: No artifacts found in release/"
             exit 1
           fi
-          echo "Artifacts found:"
-          ls -lh release/
-        shell: bash
+          echo "Artifacts found: $count"
 
       - name: Quick smoke test (Windows)
         if: runner.os == 'Windows'
         run: |
-          # Find the exe and check it exists
           $exe = Get-ChildItem -Path "release" -Recurse -Filter "*.exe" | Select-Object -First 1
           if (-not $exe) {
-            Write-Error "No .exe found in release/"
+            Write-Error "No .exe found"
             exit 1
           }
           Write-Host "Found: $($exe.FullName) ($($exe.Length) bytes)"
-          # Launch briefly to detect crash
           $proc = Start-Process -FilePath $exe.FullName -NoNewWindow -PassThru
           Start-Sleep -Seconds 3
           if (-not $proc.HasExited) {
@@ -100,18 +107,15 @@ jobs:
       - name: Quick smoke test (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Find the AppImage
-          appimage=$(ls release/*.AppImage 2>/dev/null | head -1)
-          if [ -z "$appimage" ]; then
-            echo "No AppImage found, checking for other artifacts"
+          app=$(ls release/*.AppImage 2>/dev/null | head -1)
+          if [ -z "$app" ]; then
             ls -lh release/
             exit 0
           fi
-          echo "Found: $appimage"
-          chmod +x "$appimage"
-          # Run with xvfb briefly to check it doesn't crash
-          timeout 5 xvfb-run "$appimage" --no-sandbox 2>&1 || true
-          echo "Smoke test completed"
+          echo "Found: $app"
+          chmod +x "$app"
+          timeout 5 xvfb-run "$app" --no-sandbox 2>&1 || true
+          echo "Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -121,3 +125,33 @@ jobs:
             release/*
             !release/builder-debug.yml
           retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: /tmp/artifacts
+
+      - name: Create pre-release
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            /tmp/artifacts/Token-Consumption-Windows-x64/* \
+            /tmp/artifacts/Token-Consumption-Windows-arm64/* \
+            /tmp/artifacts/Token-Consumption-macOS/* \
+            /tmp/artifacts/Token-Consumption-Linux-x64/* \
+            /tmp/artifacts/Token-Consumption-Linux-arm64/* \
+            --title "$TAG" \
+            --notes "See [DESIGN.md](./DESIGN.md) for details." \
+            --prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

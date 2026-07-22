@@ -11,20 +11,10 @@ files:
 asar: true
 
 win:
-  target:
-    - target: portable
-      arch:
-        - x64
+  target: portable
 
 mac:
-  target:
-    - target: zip
-      arch:
-        - x64
-        - arm64
+  target: zip
 
 linux:
-  target:
-    - target: dir
-      arch:
-        - x64
+  target: dir
