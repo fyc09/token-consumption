@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { connect } from 'echarts/lib/echarts'
+import * as echarts from 'echarts'
 import { Refresh } from '@element-plus/icons-vue'
 import TopStats from './components/TopStats.vue'
 import Heatmap from './components/Heatmap.vue'
@@ -84,7 +84,7 @@ watch(snapshot, () => {
 })
 
 // 联动两个柱状图的缩放
-connect('main-charts')
+echarts.connect('main-charts')
 </script>
 
 <style scoped>

@@ -24,10 +24,12 @@ export default defineConfig({
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
     resolve: {
-      alias: {
-        '@shared': resolve(__dirname, 'src/shared'),
-        '@renderer': resolve(__dirname, 'src/renderer')
-      }
+      alias: [
+        { find: /^echarts\/core$/, replacement: resolve(__dirname, 'node_modules/echarts/dist/echarts.esm.js') },
+        { find: /^echarts$/, replacement: resolve(__dirname, 'node_modules/echarts/dist/echarts.esm.js') },
+        { find: /^@shared$/, replacement: resolve(__dirname, 'src/shared') },
+        { find: /^@renderer$/, replacement: resolve(__dirname, 'src/renderer') }
+      ]
     },
     plugins: [vue()],
     build: {

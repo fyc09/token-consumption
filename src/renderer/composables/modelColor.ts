@@ -27,6 +27,3 @@ export function modelColor(model: string, ranked: string[]): string {
   return MUTED[(i - TOP_N) % MUTED.length]
 }
 
-export const HEATMAP_COLORS = [
-  '#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'
-]

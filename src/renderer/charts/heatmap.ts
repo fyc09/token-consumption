@@ -1,6 +1,5 @@
 // ECharts heatmap option (GitHub-style 7×52 grid, full year)
 import { DataSnapshot, DailyRecord } from '../../shared/types'
-import { HEATMAP_COLORS } from '../composables/modelColor'
 
 const N_WEEKS = 52
 const N_DAYS = 7
@@ -130,7 +129,7 @@ export function buildHeatmapOption(snap: DataSnapshot) {
     visualMap: {
       show: false,
       min: -1, max: 4,
-      inRange: { color: ['#0f0f12', ...HEATMAP_COLORS] }
+      inRange: { color: ['#2c2c32', '#2c2c32', '#0a2b0a', '#144a14', '#2e7d32', '#76ff76'] }
     },
     series: [{
       type: 'heatmap',
