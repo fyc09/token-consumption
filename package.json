@@ -17,7 +17,7 @@
     "echarts": "^6.1.0",
     "element-plus": "^2.7.0",
     "vue": "^3.4.0",
-    "vue-echarts": "^7.0.0"
+    "vue-echarts": "^8.0.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
