@@ -1,24 +1,25 @@
-// ECharts 100% stacked bar by model
+// ECharts 100% stacked bar by model or provider
 import { DataSnapshot } from '../../shared/types'
-import { modelColor } from '../composables/modelColor'
+import { seriesColor } from '../composables/modelColor'
 
-export function buildPercentBarOption(snap: DataSnapshot) {
+export function buildPercentBarOption(snap: DataSnapshot, mode: 'model' | 'provider' = 'model') {
   const dates = snap.daily.map(d => d.date)
-  const ranked = snap.rankedModels
+  const ranked = mode === 'provider' ? snap.rankedProviders : snap.rankedModels
+  const perDay = mode === 'provider' ? (snap as any).perDayProvider : snap.perDayModel
+  const label = mode === 'provider' ? 'Provider' : '模型'
 
-  // For each (date, model), compute the percentage of that day's total
-  const series = ranked.map(model => ({
-    name: model,
+  const series = ranked.map(name => ({
+    name,
     type: 'bar',
     stack: 'pct',
     emphasis: { focus: 'series' },
     data: snap.daily.map(d => {
       const dayTotal = d.total
       if (dayTotal === 0) return 0
-      const m = snap.perDayModel[d.date]?.[model]
+      const m = perDay[d.date]?.[name]
       return m ? (m.total / dayTotal) * 100 : 0
     }),
-    itemStyle: { color: modelColor(model, ranked) }
+    itemStyle: { color: seriesColor(name, ranked) }
   }))
 
   return {

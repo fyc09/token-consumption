@@ -129,7 +129,7 @@ export function buildHeatmapOption(snap: DataSnapshot) {
     visualMap: {
       show: false,
       min: -1, max: 4,
-      inRange: { color: ['#2c2c32', '#2c2c32', '#0a2b0a', '#144a14', '#2e7d32', '#76ff76'] }
+      inRange: { color: ['#2c2c32', '#2c2c32', '#76ff76'] }
     },
     series: [{
       type: 'heatmap',

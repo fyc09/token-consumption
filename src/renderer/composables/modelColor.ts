@@ -20,10 +20,12 @@ const MUTED = [
 
 const TOP_N = 8
 
-export function modelColor(model: string, ranked: string[]): string {
-  const i = ranked.indexOf(model)
+export function seriesColor(name: string, ranked: string[]): string {
+  const i = ranked.indexOf(name)
   if (i < 0) return MUTED[0]
   if (i < TOP_N) return BOLD[i]
   return MUTED[(i - TOP_N) % MUTED.length]
 }
+
+export { seriesColor as modelColor }
 

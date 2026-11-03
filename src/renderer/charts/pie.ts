@@ -1,6 +1,6 @@
 // ECharts pie chart options
 import { ModelSlice } from '../../shared/types'
-import { modelColor } from '../composables/modelColor'
+import { seriesColor } from '../composables/modelColor'
 
 export function buildTokenClassPie(detail: {
   input: number; output: number; cacheRead: number;
@@ -28,18 +28,19 @@ export function buildTokenClassPie(detail: {
   }
 }
 
-export function buildModelPie(slices: ModelSlice[], ranked: string[]) {
+export function buildModelPie(slices: ModelSlice[], ranked: string[], mode: 'model' | 'provider' = 'model') {
+  const title = mode === 'provider' ? 'Provider 分类' : '模型分类'
   const data = slices
     .filter(s => s.value > 0)
     .map(s => ({
       name: s.name,
       value: s.value,
-      itemStyle: { color: modelColor(s.name, ranked) }
+      itemStyle: { color: seriesColor(s.name, ranked) }
     }))
 
   return {
     backgroundColor: 'transparent',
-    title: { text: '模型分类', left: 'center', top: 0, textStyle: { fontSize: 14 } },
+    title: { text: title, left: 'center', top: 0, textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'item', appendToBody: true, formatter: '{b}: {c} ({d}%)' },
     series: [{
       type: 'pie',

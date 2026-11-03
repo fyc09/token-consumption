@@ -52,16 +52,24 @@ export function aggregate(msgs: RawMessage[]): DataSnapshot {
   // Normalize models first
   const normed = msgs.map(m => ({ ...m, model: normModel(m.model) }))
 
-  // Group by (date, model)
+  // Group by (date, model) and (date, provider)
   const perDayModel: Record<string, Record<string, ModelStats>> = {}
+  const perDayProvider: Record<string, Record<string, ModelStats>> = {}
   const modelTotals: Record<string, number> = {}
+  const providerTotals: Record<string, number> = {}
   // Per-day per-hour raw data (for detail dialog minute mode)
   const perDayHour: Record<string, Record<number, { calls: number; input: number; output: number; cacheRead: number; cacheWrite: number; reasoning: number; total: number }>> = {}
   // Per-day per-hour per-model, per-day per-minute per-model
+  // And per-day per-model+provider for export
+  const perDayModelProvider: Record<string, Record<string, Record<string, ModelStats>>> = {}
+  // And per-provider variants
   const perDayHourModel: Record<string, Record<number, Record<string, number>>> = {}
   const perDayMinuteModel: Record<string, Record<number, Record<string, number>>> = {}
+  const perDayHourProvider: Record<string, Record<number, Record<string, number>>> = {}
+  const perDayMinuteProvider: Record<string, Record<number, Record<string, number>>> = {}
   for (const m of normed) {
     const date = toLocalDateStr(m.ts)
+    // Per-day per-model stats
     if (!perDayModel[date]) perDayModel[date] = {}
     if (!perDayModel[date][m.model]) {
       perDayModel[date][m.model] = {
@@ -69,15 +77,31 @@ export function aggregate(msgs: RawMessage[]): DataSnapshot {
         reasoning: 0, total: 0
       }
     }
-    const c = perDayModel[date][m.model]
-    c.calls += 1
-    c.input += m.input
-    c.output += m.output
-    c.cacheRead += m.cacheRead
-    c.cacheWrite += m.cacheWrite
-    c.reasoning += m.reasoning
-    c.total += m.total
+    appendStats(perDayModel[date][m.model], m)
     modelTotals[m.model] = (modelTotals[m.model] || 0) + m.total
+
+    // Per-day per-provider stats
+    const provider = m.provider || 'unknown'
+    if (!perDayProvider[date]) perDayProvider[date] = {}
+    if (!perDayProvider[date][provider]) {
+      perDayProvider[date][provider] = {
+        calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0,
+        reasoning: 0, total: 0
+      }
+    }
+    appendStats(perDayProvider[date][provider], m)
+    providerTotals[provider] = (providerTotals[provider] || 0) + m.total
+
+    // Per-day per-model+provider (atomic export unit)
+    if (!perDayModelProvider[date]) perDayModelProvider[date] = {}
+    if (!perDayModelProvider[date][m.model]) perDayModelProvider[date][m.model] = {}
+    if (!perDayModelProvider[date][m.model][provider]) {
+      perDayModelProvider[date][m.model][provider] = {
+        calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0,
+        reasoning: 0, total: 0
+      }
+    }
+    appendStats(perDayModelProvider[date][m.model][provider], m)
 
     // Per-hour
     const hour = getHourLocal(m.ts)
@@ -99,16 +123,29 @@ export function aggregate(msgs: RawMessage[]): DataSnapshot {
     if (!perDayHourModel[date][hour]) perDayHourModel[date][hour] = {}
     perDayHourModel[date][hour][m.model] = (perDayHourModel[date][hour][m.model] || 0) + m.total
 
+    // Per-hour per-provider
+    if (!perDayHourProvider[date]) perDayHourProvider[date] = {}
+    if (!perDayHourProvider[date][hour]) perDayHourProvider[date][hour] = {}
+    perDayHourProvider[date][hour][provider] = (perDayHourProvider[date][hour][provider] || 0) + m.total
+
     // Per-minute per-model
     const minute = getMinuteLocal(m.ts)
     if (!perDayMinuteModel[date]) perDayMinuteModel[date] = {}
     if (!perDayMinuteModel[date][minute]) perDayMinuteModel[date][minute] = {}
     perDayMinuteModel[date][minute][m.model] = (perDayMinuteModel[date][minute][m.model] || 0) + m.total
+
+    // Per-minute per-provider
+    if (!perDayMinuteProvider[date]) perDayMinuteProvider[date] = {}
+    if (!perDayMinuteProvider[date][minute]) perDayMinuteProvider[date][minute] = {}
+    perDayMinuteProvider[date][minute][provider] = (perDayMinuteProvider[date][minute][provider] || 0) + m.total
   }
 
-  // Rank models by total
+  // Rank models / providers by total
   const rankedModels = Object.keys(modelTotals).sort(
     (a, b) => modelTotals[b] - modelTotals[a]
+  )
+  const rankedProviders = Object.keys(providerTotals).sort(
+    (a, b) => providerTotals[b] - providerTotals[a]
   )
 
   // Build daily[]
@@ -147,8 +184,21 @@ export function aggregate(msgs: RawMessage[]): DataSnapshot {
     range: { from: dates[0] || '', to: dates[dates.length - 1] || '' },
     grandTotal, todayTotal, todayDate: today,
     daily, perDayModel, rankedModels,
-    perDayHour, perDayHourModel, perDayMinuteModel
+    perDayProvider, rankedProviders,
+    perDayModelProvider,
+    perDayHour, perDayHourModel, perDayMinuteModel,
+    perDayHourProvider, perDayMinuteProvider
   } as any
+}
+
+function appendStats(s: ModelStats, m: RawMessage) {
+  s.calls += 1
+  s.input += m.input
+  s.output += m.output
+  s.cacheRead += m.cacheRead
+  s.cacheWrite += m.cacheWrite
+  s.reasoning += m.reasoning
+  s.total += m.total
 }
 
 function dateToWeekday(dateStr: string): number {
@@ -161,6 +211,7 @@ function dateToWeekday(dateStr: string): number {
 
 export function getDayDetail(snap: DataSnapshot, date: string): DayDetail | null {
   const models = snap.perDayModel[date]
+  const providers = snap.perDayProvider[date]
   if (!models) return null
   let total = 0, input = 0, output = 0, cacheRead = 0, cacheWrite = 0, reasoning = 0, calls = 0
   for (const k of Object.keys(models)) {
@@ -187,19 +238,13 @@ export function getDayDetail(snap: DataSnapshot, date: string): DayDetail | null
     return { hour: h, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0, total: 0, calls: 0 }
   })
 
-  // Per-model hourly: model -> [24 hours of total]
-  const perModelHourly: Record<string, number[]> = {}
-  const hourModelMap = (snap as any).perDayHourModel?.[date] || {}
-  for (const model of Object.keys(models)) {
-    perModelHourly[model] = Array.from({ length: 24 }, (_, h) => hourModelMap[h]?.[model] || 0)
-  }
+  // Per-model hourly+minutely
+  const perModelHourly = buildHourlyLookup(models, (snap as any).perDayHourModel?.[date])
+  const perModelMinutely = buildMinutelyLookup(models, (snap as any).perDayMinuteModel?.[date])
 
-  // Per-model minutely: model -> [1440 minutes of total]
-  const perModelMinutely: Record<string, number[]> = {}
-  const minuteModelMap = (snap as any).perDayMinuteModel?.[date] || {}
-  for (const model of Object.keys(models)) {
-    perModelMinutely[model] = Array.from({ length: 1440 }, (_, m) => minuteModelMap[m]?.[model] || 0)
-  }
+  // Per-provider hourly+minutely
+  const perProviderHourly = buildHourlyLookup(providers, (snap as any).perDayHourProvider?.[date])
+  const perProviderMinutely = buildMinutelyLookup(providers, (snap as any).perDayMinuteProvider?.[date])
 
   // perDayContext: ±3 days
   const dateIdx = snap.daily.findIndex(d => d.date === date)
@@ -209,7 +254,34 @@ export function getDayDetail(snap: DataSnapshot, date: string): DayDetail | null
 
   return {
     date, total, input, output, cacheRead, cacheWrite, reasoning,
-    cacheHitRate, calls, perModel: models, minutes, perDayContext,
-    perModelHourly, perModelMinutely
+    cacheHitRate, calls,
+    perModel: models, perProvider: providers || {},
+    minutes, perDayContext,
+    perModelHourly, perModelMinutely,
+    perProviderHourly, perProviderMinutely
   }
+}
+
+function buildHourlyLookup(
+  stats: Record<string, ModelStats> | undefined,
+  raw: Record<number, Record<string, number>> | undefined
+): Record<string, number[]> {
+  const result: Record<string, number[]> = {}
+  if (!stats || !raw) return result
+  for (const key of Object.keys(stats)) {
+    result[key] = Array.from({ length: 24 }, (_, h) => raw[h]?.[key] || 0)
+  }
+  return result
+}
+
+function buildMinutelyLookup(
+  stats: Record<string, ModelStats> | undefined,
+  raw: Record<number, Record<string, number>> | undefined
+): Record<string, number[]> {
+  const result: Record<string, number[]> = {}
+  if (!stats || !raw) return result
+  for (const key of Object.keys(stats)) {
+    result[key] = Array.from({ length: 1440 }, (_, m) => raw[m]?.[key] || 0)
+  }
+  return result
 }

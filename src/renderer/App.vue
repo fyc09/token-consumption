@@ -6,6 +6,9 @@
         <el-icon><Refresh /></el-icon>
         <span style="margin-left: 4px">刷新</span>
       </el-button>
+      <el-button text @click="doExport">
+        <span style="margin-left: 4px">导出 CSV</span>
+      </el-button>
       <span class="date">{{ snapshot?.todayDate || '' }}</span>
     </el-header>
 
@@ -24,13 +27,23 @@
       </el-card>
 
       <el-card class="section">
-        <template #header>每日 Token 总消耗</template>
-        <DailyTokens :snapshot="snapshot" @select="openDay" />
+        <template #header>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span>每日 Token 总消耗</span>
+            <el-segmented v-model="viewMode" :options="['模型', 'Provider']" style="flex-shrink:0" />
+          </div>
+        </template>
+        <DailyTokens :snapshot="snapshot" :mode="modeKey" @select="openDay" />
       </el-card>
 
       <el-card class="section">
-        <template #header>每日模型分布</template>
-        <DailyModels :snapshot="snapshot" @select="openDay" />
+        <template #header>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span>分布视图</span>
+            <el-segmented v-model="viewMode" :options="['模型', 'Provider']" style="flex-shrink:0" />
+          </div>
+        </template>
+        <DailyModels :snapshot="snapshot" :mode="modeKey" @select="openDay" />
       </el-card>
     </el-main>
 
@@ -54,9 +67,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import * as echarts from 'echarts'
 import { Refresh } from '@element-plus/icons-vue'
+import { ElNotification } from 'element-plus'
 import TopStats from './components/TopStats.vue'
 import Heatmap from './components/Heatmap.vue'
 import DailyTokens from './components/DailyTokens.vue'
@@ -71,6 +85,17 @@ const { selectedDay, dayDetail, detailLoading, openDay, closeDay } = useSelectio
 const totalCalls = computed(() => snapshot.value?.daily.reduce((s, d) => s + d.calls, 0) ?? 0)
 const todayCalls = computed(() => snapshot.value?.daily.find(d => d.date === snapshot.value?.todayDate)?.calls ?? 0)
 const todayHitRate = computed(() => snapshot.value?.daily.find(d => d.date === snapshot.value?.todayDate)?.cacheHitRate ?? 0)
+
+const viewMode = ref<'模型' | 'Provider'>('模型')
+const modeKey = computed(() => viewMode.value === 'Provider' ? 'provider' : 'model')
+
+async function doExport() {
+  if (!window.api) return
+  const path = await window.api.exportCSV()
+  if (path) {
+    ElNotification({ title: '导出成功', message: path, type: 'success', duration: 4000 })
+  }
+}
 
 const dialogVisible = computed({
   get: () => selectedDay.value !== null,

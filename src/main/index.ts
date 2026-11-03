@@ -1,8 +1,10 @@
-import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, dialog } from 'electron'
+import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { loadPiMessages } from '../data/pi.js'
 import { loadOpencodeMessages } from '../data/opencode.js'
 import { aggregate, getDayDetail } from '../data/aggregate.js'
+import { generateCSV } from '../data/exportCSV.js'
 import { DataSnapshot, DayDetail } from '../shared/types.js'
 
 let mainWindow: BrowserWindow | null = null
@@ -69,6 +71,18 @@ app.whenReady().then(async () => {
   ipcMain.handle('day:detail', async (_e, date: string): Promise<DayDetail | null> => {
     if (!cachedSnapshot) cachedSnapshot = await buildSnapshot()
     return getDayDetail(cachedSnapshot, date)
+  })
+
+  ipcMain.handle('data:export-csv', async (): Promise<string | null> => {
+    if (!cachedSnapshot) return null
+    const csv = generateCSV(cachedSnapshot)
+    const { filePath, canceled } = await dialog.showSaveDialog(mainWindow!, {
+      defaultPath: `token-consumption-${cachedSnapshot.todayDate}.csv`,
+      filters: [{ name: 'CSV', extensions: ['csv'] }]
+    })
+    if (canceled || !filePath) return null
+    await writeFile(filePath, csv, 'utf-8')
+    return filePath
   })
 
   createWindow()

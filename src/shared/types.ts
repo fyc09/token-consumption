@@ -40,6 +40,9 @@ export interface DataSnapshot {
   daily: DailyRecord[]               // asc by date
   perDayModel: Record<string, Record<string, ModelStats>>
   rankedModels: string[]             // desc by total usage
+  perDayProvider: Record<string, Record<string, ModelStats>>
+  rankedProviders: string[]          // desc by total usage
+  perDayModelProvider: Record<string, Record<string, Record<string, ModelStats>>>  // date → model → provider → stats
 }
 
 export interface MinuteRecord {
@@ -64,8 +67,11 @@ export interface DayDetail {
   cacheHitRate: number
   calls: number
   perModel: Record<string, ModelStats>
+  perProvider: Record<string, ModelStats>
   minutes: MinuteRecord[]              // 24 entries (hourly)
   perDayContext: DailyRecord[]         // ±3 days, asc
   perModelHourly: Record<string, number[]>  // model → [24 hours of total tokens]
   perModelMinutely: Record<string, number[]> // model → [1440 minutes of total tokens]
+  perProviderHourly: Record<string, number[]>
+  perProviderMinutely: Record<string, number[]>
 }

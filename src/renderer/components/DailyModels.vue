@@ -16,10 +16,10 @@ import VChart from 'vue-echarts'
 import { buildPercentBarOption } from '../charts/percentBar'
 import { DataSnapshot } from '../../shared/types'
 
-const props = defineProps<{ snapshot: DataSnapshot | null }>()
+const props = defineProps<{ snapshot: DataSnapshot | null; mode: 'model' | 'provider' }>()
 const emit = defineEmits<{ (e: 'select', date: string): void }>()
 
-const option = computed(() => props.snapshot ? buildPercentBarOption(props.snapshot) : { series: [] })
+const option = computed(() => props.snapshot ? buildPercentBarOption(props.snapshot, props.mode) : { series: [] })
 
 function onClick(params: any) {
   const idx = params.dataIndex

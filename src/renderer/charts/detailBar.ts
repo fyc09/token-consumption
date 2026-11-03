@@ -1,9 +1,22 @@
-// ECharts stacked bar for detail dialog — by model, minute / hour modes
+// ECharts stacked bar for detail dialog — by model/provider, minute / hour modes
 import { DayDetail } from '../../shared/types'
-import { modelColor } from '../composables/modelColor'
+import { seriesColor } from '../composables/modelColor'
 
-export function buildMinuteBar(detail: DayDetail, ranked: string[]) {
-  // 分钟模式: 288 个 5 分钟间隔 (00:00, 00:05, ..., 23:55)，按模型堆叠
+type ViewMode = 'model' | 'provider'
+
+function rankedList(detail: DayDetail, mode: ViewMode, snapRanked: string[]): string[] {
+  const data = mode === 'provider' ? detail.perProvider : detail.perModel
+  const hourly = mode === 'provider' ? detail.perProviderHourly : detail.perModelHourly
+  // Use global ranking order if applicable, otherwise local order
+  const keys = Object.keys(data)
+  const localRanked = keys.slice().sort((a, b) => data[b].total - data[a].total)
+  // Prefer global ranked order but filter to local keys
+  const global = snapRanked.filter(k => keys.includes(k))
+  if (global.length > 0) return global.concat(localRanked.filter(k => !global.includes(k)))
+  return localRanked
+}
+
+export function buildMinuteBar(detail: DayDetail, snapRanked: string[], mode: ViewMode = 'model') {
   const labels: string[] = []
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 5) {
@@ -11,12 +24,13 @@ export function buildMinuteBar(detail: DayDetail, ranked: string[]) {
     }
   }
 
-  // 将每分钟数据汇总为 5 分钟间隔
+  const minutelyMap = mode === 'provider' ? detail.perProviderMinutely : detail.perModelMinutely
+  const ranked = rankedList(detail, mode, snapRanked)
+
   const series = ranked
-    .filter(model => detail.perModelMinutely[model]?.some(v => v > 0))
-    .map(model => {
-      const minutely = detail.perModelMinutely[model] || []
-      // 288 buckets
+    .filter(key => minutelyMap[key]?.some(v => v > 0))
+    .map(key => {
+      const minutely = minutelyMap[key] || []
       const buckets: number[] = []
       for (let i = 0; i < 288; i++) {
         let sum = 0
@@ -26,12 +40,12 @@ export function buildMinuteBar(detail: DayDetail, ranked: string[]) {
         buckets.push(sum)
       }
       return {
-        name: model,
+        name: key,
         type: 'bar' as const,
         stack: 'total',
         emphasis: { focus: 'series' as const },
         data: buckets,
-        itemStyle: { color: modelColor(model, ranked) }
+        itemStyle: { color: seriesColor(key, ranked) }
       }
     })
 
@@ -70,19 +84,21 @@ export function buildMinuteBar(detail: DayDetail, ranked: string[]) {
   }
 }
 
-export function buildHourlyBar(detail: DayDetail, ranked: string[]) {
-  // 小时模式: 24 小时 (00:00 - 23:00)，按模型堆叠
+export function buildHourlyBar(detail: DayDetail, snapRanked: string[], mode: ViewMode = 'model') {
   const labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
 
+  const hourlyMap = mode === 'provider' ? detail.perProviderHourly : detail.perModelHourly
+  const ranked = rankedList(detail, mode, snapRanked)
+
   const series = ranked
-    .filter(model => detail.perModelHourly[model]?.some(v => v > 0))
-    .map(model => ({
-      name: model,
+    .filter(key => hourlyMap[key]?.some(v => v > 0))
+    .map(key => ({
+      name: key,
       type: 'bar' as const,
       stack: 'total',
       emphasis: { focus: 'series' as const },
-      data: detail.perModelHourly[model] || [],
-      itemStyle: { color: modelColor(model, ranked) }
+      data: hourlyMap[key] || [],
+      itemStyle: { color: seriesColor(key, ranked) }
     }))
 
   return {

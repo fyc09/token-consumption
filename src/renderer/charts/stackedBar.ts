@@ -1,10 +1,11 @@
 // ECharts stacked bar by model (real values)
 import { DataSnapshot } from '../../shared/types'
-import { modelColor } from '../composables/modelColor'
+import { seriesColor } from '../composables/modelColor'
 
-export function buildStackedBarOption(snap: DataSnapshot) {
+export function buildStackedBarOption(snap: DataSnapshot, mode: 'model' | 'provider' = 'model') {
   const dates = snap.daily.map(d => d.date)
-  const ranked = snap.rankedModels
+  const ranked = mode === 'provider' ? snap.rankedProviders : snap.rankedModels
+  const perDay = mode === 'provider' ? (snap as any).perDayProvider : snap.perDayModel
 
   const series = ranked.map(model => ({
     name: model,
@@ -12,10 +13,10 @@ export function buildStackedBarOption(snap: DataSnapshot) {
     stack: 'total',
     emphasis: { focus: 'series' },
     data: snap.daily.map(d => {
-      const m = snap.perDayModel[d.date]?.[model]
+      const m = perDay[d.date]?.[model]
       return m ? m.total : 0
     }),
-    itemStyle: { color: modelColor(model, ranked) }
+    itemStyle: { color: seriesColor(model, ranked) }
   }))
 
   return {

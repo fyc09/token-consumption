@@ -7,24 +7,18 @@
     @close="onClose"
   >
     <div v-if="detail">
-      <!-- 顶部：日期 + 前一天/后一天 按钮 -->
-      <el-row :gutter="8" align="middle" style="margin-bottom: 12px">
-        <el-col :span="4">
-          <el-button :disabled="!prevDate" @click="navigate(prevDate!)">
-            <el-icon><ArrowLeft /></el-icon>前一天
-          </el-button>
-        </el-col>
-        <el-col :span="16" style="text-align: center">
-          <h3 style="margin: 0">{{ detail.date }}</h3>
-        </el-col>
-        <el-col :span="4" style="text-align: right">
-          <el-button :disabled="!nextDate" @click="navigate(nextDate!)">
-            后一天<el-icon><ArrowRight /></el-icon>
-          </el-button>
-        </el-col>
-      </el-row>
+      <!-- 顶部：日期 + 前一天/后一天 按钮 + 模型/Provider 切换 -->
+      <div style="display:flex;align-items:center;margin-bottom:12px;gap:8px">
+        <el-button :disabled="!prevDate" @click="navigate(prevDate!)">
+          <el-icon><ArrowLeft /></el-icon>前一天
+        </el-button>
+        <el-segmented v-model="viewMode" :options="['模型', 'Provider']" style="margin:0 auto" />
+        <el-button :disabled="!nextDate" @click="navigate(nextDate!)">
+          后一天<el-icon><ArrowRight /></el-icon>
+        </el-button>
+      </div>
 
-      <!-- 4 张统计卡（与主页 TopStats 同款 el-statistic） -->
+      <!-- 4 张统计卡 -->
       <el-row :gutter="12">
         <el-col :span="6">
           <el-card>
@@ -54,13 +48,13 @@
           <v-chart class="pie" theme="dark" :option="tokenClassOption" autoresize />
         </el-col>
         <el-col :span="12">
-          <v-chart class="pie" theme="dark" :option="modelPieOption" autoresize />
+          <v-chart class="pie" theme="dark" :option="distPieOption" autoresize :key="viewMode + detail.date" />
         </el-col>
       </el-row>
 
       <el-divider />
 
-      <!-- 分钟(5min)/小时 Segmented + 堆叠柱（按模型） -->
+      <!-- 分钟/小时 Segmented + 堆叠柱 -->
       <el-segmented
         v-model="granularity"
         :options="['分钟', '小时']"
@@ -70,7 +64,7 @@
         class="detail-bar"
         theme="dark"
         :option="barOption"
-        :key="granularity + detail.date"
+        :key="granularity + viewMode + detail.date"
         autoresize
       />
     </div>
@@ -103,11 +97,17 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
-// 粒度切换：'分钟' (x轴=288 个 5min 间隔) | '小时' (x轴=24 小时)
+const viewMode = ref<'模型' | 'Provider'>('模型')
 const granularity = ref<'分钟' | '小时'>('分钟')
 
-const modelCount = computed(() => props.detail
-  ? Object.keys(props.detail.perModel).length : 0)
+const isProvider = computed(() => viewMode.value === 'Provider')
+
+const modelCount = computed(() => {
+  if (!props.detail) return 0
+  return isProvider.value
+    ? Object.keys(props.detail.perProvider).length
+    : Object.keys(props.detail.perModel).length
+})
 
 // 找前一天 / 后一天
 const allDates = computed(() => props.snapshot?.daily.map(d => d.date) || [])
@@ -131,25 +131,33 @@ function navigate(date: string) {
 const tokenClassOption = computed(() => props.detail
   ? buildTokenClassPie(props.detail) : { series: [] })
 
-const modelPieOption = computed(() => {
+const modeKey = computed(() => isProvider.value ? 'provider' as const : 'model' as const)
+
+const distPieOption = computed(() => {
   if (!props.detail || !props.snapshot) return { series: [] }
-  const slices: ModelSlice[] = Object.keys(props.detail.perModel)
-    .map(name => ({ name, value: props.detail!.perModel[name].total, pct: 0 }))
+  const data = isProvider.value ? props.detail.perProvider : props.detail.perModel
+  const ranked = isProvider.value ? props.snapshot.rankedProviders : props.snapshot.rankedModels
+  const slices: ModelSlice[] = Object.keys(data)
+    .map(name => ({ name, value: data[name].total, pct: 0 }))
     .sort((a, b) => b.value - a.value)
   const total = slices.reduce((s, x) => s + x.value, 0)
   slices.forEach(s => { s.pct = total > 0 ? s.value / total * 100 : 0 })
-  return buildModelPie(slices, props.snapshot.rankedModels)
+  return buildModelPie(slices, ranked, modeKey.value)
 })
 
 const barOption = computed(() => {
   if (!props.detail || !props.snapshot) return { series: [] }
+  const ranked = isProvider.value ? props.snapshot.rankedProviders : props.snapshot.rankedModels
   return granularity.value === '分钟'
-    ? buildMinuteBar(props.detail, props.snapshot.rankedModels)
-    : buildHourlyBar(props.detail, props.snapshot.rankedModels)
+    ? buildMinuteBar(props.detail, ranked, modeKey.value)
+    : buildHourlyBar(props.detail, ranked, modeKey.value)
 })
 
 watch(() => props.modelValue, (v) => {
-  if (v) granularity.value = '分钟'
+  if (v) {
+    granularity.value = '分钟'
+    viewMode.value = '模型'
+  }
 })
 
 function onClose() { emit('close') }

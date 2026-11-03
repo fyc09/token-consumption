@@ -59,16 +59,20 @@ export async function loadPiMessages(): Promise<RawMessage[]> {
       if (isNaN(dt.getTime())) continue
       const u = msg.usage
       const inp = +u.input || 0
-      const outp = +u.output || 0
+      const rawOut = +u.output || 0
       const cr = +u.cacheRead || 0
       const cw = +u.cacheWrite || 0
-      const rea = +u.reasoning || 0
+      // pi 的 reasoning 是 output 的子集（已验证 22979 条全部 reasoning <= output）。
+      // 为了让 pi 与 opencode 语义一致（两者的 output 与 reasoning 不相交），
+      // 这里将 output 拆成「非推理输出 + 推理」，避免重复计数。
+      const rea = Math.min(+u.reasoning || 0, rawOut)
+      const outp = rawOut - rea
       msgs.push({
         ts: dt.getTime(),
         model: msg.model || 'unknown',
         provider: msg.provider || 'unknown',
         input: inp, output: outp, cacheRead: cr, cacheWrite: cw, reasoning: rea,
-        total: inp + outp + cr + cw + rea,
+        total: inp + outp + rea + cr + cw,  // = inp + rawOut + cr + cw，与 pi 的 totalTokens 一致
         calls: 1
       })
     }
