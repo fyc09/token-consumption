@@ -3,6 +3,7 @@ import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { loadPiMessages } from '../data/pi.js'
 import { loadOpencodeMessages } from '../data/opencode.js'
+import { loadCodexMessages } from '../data/codex.js'
 import { aggregate, getDayDetail } from '../data/aggregate.js'
 import { generateCSV } from '../data/exportCSV.js'
 import { DataSnapshot, DayDetail } from '../shared/types.js'
@@ -11,11 +12,12 @@ let mainWindow: BrowserWindow | null = null
 let cachedSnapshot: DataSnapshot | null = null
 
 async function buildSnapshot(): Promise<DataSnapshot> {
-  const [pi, oc] = await Promise.all([
+  const [pi, oc, codex] = await Promise.all([
     Promise.resolve().then(() => loadPiMessages()),
-    Promise.resolve().then(() => loadOpencodeMessages())
+    Promise.resolve().then(() => loadOpencodeMessages()),
+    loadCodexMessages()
   ])
-  return aggregate([...pi, ...oc])
+  return aggregate([...pi, ...oc, ...codex])
 }
 
 function createWindow() {

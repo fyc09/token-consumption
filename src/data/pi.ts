@@ -39,6 +39,13 @@ export async function loadPiMessages(): Promise<RawMessage[]> {
   const msgs: RawMessage[] = []
   const files = await walkJsonl(base, [])
 
+  // pi 在续接 / 分叉会话时，会把历史消息连同当时的 usage 整份重写进新的
+  // session 文件（同一 rec.id 会出现在多个 .jsonl 里，最多 5 次）。
+  // 若按文件全量累加，会把同一笔消耗重复计算 2～5 倍。
+  // 实测：52,724 条 record 只有 45,016 个唯一 id；同一 id 的 timestamp 与
+  // usage 跨文件完全一致（0 例不一致），因此按 rec.id 全局去重是安全的。
+  const seen = new Set<string>()
+
   for (const f of files) {
     let content: string
     try {
@@ -57,6 +64,13 @@ export async function loadPiMessages(): Promise<RawMessage[]> {
       if (!ts) continue
       const dt = new Date(ts)
       if (isNaN(dt.getTime())) continue
+
+      // 按消息 id 去重（id 在记录的顶层，不在 message 内）
+      const id: string | undefined = rec.id
+      if (id) {
+        if (seen.has(id)) continue
+        seen.add(id)
+      }
       const u = msg.usage
       const inp = +u.input || 0
       const rawOut = +u.output || 0
