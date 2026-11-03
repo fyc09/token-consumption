@@ -1,12 +1,12 @@
-// ECharts 100% stacked bar by model or provider
-import { DataSnapshot } from '../../shared/types'
+// ECharts 100% stacked bar — 按 模型 / 供应商 / Harness
+import { DataSnapshot, DimKey } from '../../shared/types'
 import { seriesColor } from '../composables/modelColor'
+import { rankedOf, perDayOf } from './dimension'
 
-export function buildPercentBarOption(snap: DataSnapshot, mode: 'model' | 'provider' = 'model') {
+export function buildPercentBarOption(snap: DataSnapshot, mode: DimKey = 'model') {
   const dates = snap.daily.map(d => d.date)
-  const ranked = mode === 'provider' ? snap.rankedProviders : snap.rankedModels
-  const perDay = mode === 'provider' ? (snap as any).perDayProvider : snap.perDayModel
-  const label = mode === 'provider' ? 'Provider' : '模型'
+  const ranked = rankedOf(snap, mode)
+  const perDay = perDayOf(snap, mode)
 
   const series = ranked.map(name => ({
     name,

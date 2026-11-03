@@ -16,6 +16,15 @@ export interface ModelSlice {
   pct: number
 }
 
+/** 聚合维度：模型 / 供应商(provider) / Harness(来源 CLI) */
+export type DimKey = 'model' | 'provider' | 'harness'
+
+/** 某维度下：名称 → 统计 */
+export type DimStats = Record<string, ModelStats>
+
+/** 时间片下某维度：hour/minute → 名称 → total */
+export type DimTimeSeries = Record<number, Record<string, number>>
+
 export interface DailyRecord {
   date: string                       // 'YYYY-MM-DD'
   weekday: number                    // 0 = Mon, 6 = Sun
@@ -38,11 +47,26 @@ export interface DataSnapshot {
   todayTotal: number
   todayDate: string
   daily: DailyRecord[]               // asc by date
-  perDayModel: Record<string, Record<string, ModelStats>>
+
+  // 三个维度各自的「日期 → 名称 → 统计」索引（供图表直接查）
+  perDayModel: Record<string, DimStats>
+  perDayProvider: Record<string, DimStats>
+  perDayHarness: Record<string, DimStats>
   rankedModels: string[]             // desc by total usage
-  perDayProvider: Record<string, Record<string, ModelStats>>
-  rankedProviders: string[]          // desc by total usage
-  perDayModelProvider: Record<string, Record<string, Record<string, ModelStats>>>  // date → model → provider → stats
+  rankedProviders: string[]
+  rankedHarnesses: string[]
+
+  // CSV 原子行：date → harness → model → provider → stats（无损、无冗余）
+  perDayCombo: Record<string, Record<string, Record<string, Record<string, ModelStats>>>>
+
+  // 时间片（小时 / 分钟）索引
+  perDayHour: Record<string, Record<number, ModelStats>>
+  perDayHourModel: Record<string, DimTimeSeries>
+  perDayMinuteModel: Record<string, DimTimeSeries>
+  perDayHourProvider: Record<string, DimTimeSeries>
+  perDayMinuteProvider: Record<string, DimTimeSeries>
+  perDayHourHarness: Record<string, DimTimeSeries>
+  perDayMinuteHarness: Record<string, DimTimeSeries>
 }
 
 export interface MinuteRecord {
@@ -66,12 +90,18 @@ export interface DayDetail {
   reasoning: number
   cacheHitRate: number
   calls: number
-  perModel: Record<string, ModelStats>
-  perProvider: Record<string, ModelStats>
+
+  perModel: DimStats
+  perProvider: DimStats
+  perHarness: DimStats
+
   minutes: MinuteRecord[]              // 24 entries (hourly)
   perDayContext: DailyRecord[]         // ±3 days, asc
-  perModelHourly: Record<string, number[]>  // model → [24 hours of total tokens]
-  perModelMinutely: Record<string, number[]> // model → [1440 minutes of total tokens]
+
+  perModelHourly: Record<string, number[]>     // model → [24 hours of total tokens]
+  perModelMinutely: Record<string, number[]>   // model → [1440 minutes of total tokens]
   perProviderHourly: Record<string, number[]>
   perProviderMinutely: Record<string, number[]>
+  perHarnessHourly: Record<string, number[]>
+  perHarnessMinutely: Record<string, number[]>
 }

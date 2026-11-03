@@ -7,12 +7,12 @@
     @close="onClose"
   >
     <div v-if="detail">
-      <!-- 顶部：日期 + 前一天/后一天 按钮 + 模型/Provider 切换 -->
+      <!-- 顶部：日期 + 前一天/后一天 按钮 + 维度切换 -->
       <div style="display:flex;align-items:center;margin-bottom:12px;gap:8px">
         <el-button :disabled="!prevDate" @click="navigate(prevDate!)">
           <el-icon><ArrowLeft /></el-icon>前一天
         </el-button>
-        <el-segmented v-model="viewMode" :options="['模型', 'Provider']" style="margin:0 auto" />
+        <el-segmented v-model="viewDim" :options="DIM_OPTIONS" style="margin:0 auto" />
         <el-button :disabled="!nextDate" @click="navigate(nextDate!)">
           后一天<el-icon><ArrowRight /></el-icon>
         </el-button>
@@ -37,7 +37,7 @@
         </el-col>
         <el-col :span="6">
           <el-card>
-            <el-statistic title="模型数" :value="modelCount" />
+            <el-statistic :title="DIM_LABEL[viewDim] + '数'" :value="groupedCount" />
           </el-card>
         </el-col>
       </el-row>
@@ -48,7 +48,7 @@
           <v-chart class="pie" theme="dark" :option="tokenClassOption" autoresize />
         </el-col>
         <el-col :span="12">
-          <v-chart class="pie" theme="dark" :option="distPieOption" autoresize :key="viewMode + detail.date" />
+          <v-chart class="pie" theme="dark" :option="distPieOption" autoresize :key="viewDim + detail.date" />
         </el-col>
       </el-row>
 
@@ -64,7 +64,7 @@
         class="detail-bar"
         theme="dark"
         :option="barOption"
-        :key="granularity + viewMode + detail.date"
+        :key="granularity + viewDim + detail.date"
         autoresize
       />
     </div>
@@ -76,7 +76,8 @@
 import { ref, computed, watch } from 'vue'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
-import { DayDetail, DataSnapshot, ModelSlice } from '../../shared/types'
+import { DayDetail, DataSnapshot, ModelSlice, DimKey, DimStats } from '../../shared/types'
+import { DIM_LABEL, rankedOf } from '../charts/dimension'
 import { buildTokenClassPie, buildModelPie } from '../charts/pie'
 import { buildMinuteBar, buildHourlyBar } from '../charts/detailBar'
 
@@ -97,17 +98,22 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v)
 })
 
-const viewMode = ref<'模型' | 'Provider'>('模型')
+const viewDim = ref<DimKey>('model')
+const DIM_OPTIONS: { label: string; value: DimKey }[] = [
+  { label: '模型', value: 'model' },
+  { label: '供应商', value: 'provider' },
+  { label: 'Harness', value: 'harness' }
+]
 const granularity = ref<'分钟' | '小时'>('分钟')
 
-const isProvider = computed(() => viewMode.value === 'Provider')
-
-const modelCount = computed(() => {
-  if (!props.detail) return 0
-  return isProvider.value
-    ? Object.keys(props.detail.perProvider).length
-    : Object.keys(props.detail.perModel).length
+const dimStats = computed<DimStats>(() => {
+  if (!props.detail) return {}
+  if (viewDim.value === 'provider') return props.detail.perProvider
+  if (viewDim.value === 'harness') return props.detail.perHarness
+  return props.detail.perModel
 })
+
+const groupedCount = computed(() => Object.keys(dimStats.value).length)
 
 // 找前一天 / 后一天
 const allDates = computed(() => props.snapshot?.daily.map(d => d.date) || [])
@@ -131,32 +137,30 @@ function navigate(date: string) {
 const tokenClassOption = computed(() => props.detail
   ? buildTokenClassPie(props.detail) : { series: [] })
 
-const modeKey = computed(() => isProvider.value ? 'provider' as const : 'model' as const)
-
 const distPieOption = computed(() => {
   if (!props.detail || !props.snapshot) return { series: [] }
-  const data = isProvider.value ? props.detail.perProvider : props.detail.perModel
-  const ranked = isProvider.value ? props.snapshot.rankedProviders : props.snapshot.rankedModels
+  const data = dimStats.value
+  const ranked = rankedOf(props.snapshot, viewDim.value)
   const slices: ModelSlice[] = Object.keys(data)
     .map(name => ({ name, value: data[name].total, pct: 0 }))
     .sort((a, b) => b.value - a.value)
   const total = slices.reduce((s, x) => s + x.value, 0)
   slices.forEach(s => { s.pct = total > 0 ? s.value / total * 100 : 0 })
-  return buildModelPie(slices, ranked, modeKey.value)
+  return buildModelPie(slices, ranked, viewDim.value)
 })
 
 const barOption = computed(() => {
   if (!props.detail || !props.snapshot) return { series: [] }
-  const ranked = isProvider.value ? props.snapshot.rankedProviders : props.snapshot.rankedModels
+  const ranked = rankedOf(props.snapshot, viewDim.value)
   return granularity.value === '分钟'
-    ? buildMinuteBar(props.detail, ranked, modeKey.value)
-    : buildHourlyBar(props.detail, ranked, modeKey.value)
+    ? buildMinuteBar(props.detail, ranked, viewDim.value)
+    : buildHourlyBar(props.detail, ranked, viewDim.value)
 })
 
 watch(() => props.modelValue, (v) => {
   if (v) {
     granularity.value = '分钟'
-    viewMode.value = '模型'
+    viewDim.value = 'model'
   }
 })
 

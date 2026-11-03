@@ -207,6 +207,7 @@ export async function loadCodexMessages(): Promise<RawMessage[]> {
         ts: point.ts,
         model,
         provider,
+        harness: 'codex',
         ...splitIncrement(inc, point)
       })
     }

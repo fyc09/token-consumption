@@ -7,6 +7,7 @@ export interface RawMessage {
   ts: number          // ms epoch
   model: string
   provider: string
+  harness: string     // 来源 CLI：pi / opencode / codex
   input: number
   output: number
   cacheRead: number
@@ -85,6 +86,7 @@ export async function loadPiMessages(): Promise<RawMessage[]> {
         ts: dt.getTime(),
         model: msg.model || 'unknown',
         provider: msg.provider || 'unknown',
+        harness: 'pi',
         input: inp, output: outp, cacheRead: cr, cacheWrite: cw, reasoning: rea,
         total: inp + outp + rea + cr + cw,  // = inp + rawOut + cr + cw，与 pi 的 totalTokens 一致
         calls: 1

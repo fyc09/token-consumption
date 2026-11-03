@@ -30,20 +30,20 @@
         <template #header>
           <div style="display:flex;align-items:center;gap:12px">
             <span>每日 Token 总消耗</span>
-            <el-segmented v-model="viewMode" :options="['模型', 'Provider']" style="flex-shrink:0" />
+            <el-segmented v-model="viewDim" :options="DIM_OPTIONS" style="flex-shrink:0" />
           </div>
         </template>
-        <DailyTokens :snapshot="snapshot" :mode="modeKey" @select="openDay" />
+        <DailyTokens :snapshot="snapshot" :mode="viewDim" @select="openDay" />
       </el-card>
 
       <el-card class="section">
         <template #header>
           <div style="display:flex;align-items:center;gap:12px">
             <span>分布视图</span>
-            <el-segmented v-model="viewMode" :options="['模型', 'Provider']" style="flex-shrink:0" />
+            <el-segmented v-model="viewDim" :options="DIM_OPTIONS" style="flex-shrink:0" />
           </div>
         </template>
-        <DailyModels :snapshot="snapshot" :mode="modeKey" @select="openDay" />
+        <DailyModels :snapshot="snapshot" :mode="viewDim" @select="openDay" />
       </el-card>
     </el-main>
 
@@ -78,6 +78,7 @@ import DailyModels from './components/DailyModels.vue'
 import DetailDialog from './components/DetailDialog.vue'
 import { useData } from './composables/useData'
 import { useSelection } from './composables/useSelection'
+import type { DimKey } from '../shared/types'
 
 const { snapshot, loading, refresh } = useData()
 const { selectedDay, dayDetail, detailLoading, openDay, closeDay } = useSelection()
@@ -86,8 +87,12 @@ const totalCalls = computed(() => snapshot.value?.daily.reduce((s, d) => s + d.c
 const todayCalls = computed(() => snapshot.value?.daily.find(d => d.date === snapshot.value?.todayDate)?.calls ?? 0)
 const todayHitRate = computed(() => snapshot.value?.daily.find(d => d.date === snapshot.value?.todayDate)?.cacheHitRate ?? 0)
 
-const viewMode = ref<'模型' | 'Provider'>('模型')
-const modeKey = computed(() => viewMode.value === 'Provider' ? 'provider' : 'model')
+const viewDim = ref<DimKey>('model')
+const DIM_OPTIONS: { label: string; value: DimKey }[] = [
+  { label: '模型', value: 'model' },
+  { label: '供应商', value: 'provider' },
+  { label: 'Harness', value: 'harness' }
+]
 
 async function doExport() {
   if (!window.api) return

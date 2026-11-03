@@ -14,9 +14,9 @@
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { buildStackedBarOption } from '../charts/stackedBar'
-import { DataSnapshot } from '../../shared/types'
+import { DataSnapshot, DimKey } from '../../shared/types'
 
-const props = defineProps<{ snapshot: DataSnapshot | null; mode: 'model' | 'provider' }>()
+const props = defineProps<{ snapshot: DataSnapshot | null; mode: DimKey }>()
 const emit = defineEmits<{ (e: 'select', date: string): void }>()
 
 const option = computed(() => props.snapshot ? buildStackedBarOption(props.snapshot, props.mode) : { series: [] })

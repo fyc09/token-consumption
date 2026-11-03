@@ -1,11 +1,12 @@
-// ECharts stacked bar by model (real values)
-import { DataSnapshot } from '../../shared/types'
+// ECharts stacked bar (real values) — 按 模型 / 供应商 / Harness
+import { DataSnapshot, DimKey } from '../../shared/types'
 import { seriesColor } from '../composables/modelColor'
+import { rankedOf, perDayOf } from './dimension'
 
-export function buildStackedBarOption(snap: DataSnapshot, mode: 'model' | 'provider' = 'model') {
+export function buildStackedBarOption(snap: DataSnapshot, mode: DimKey = 'model') {
   const dates = snap.daily.map(d => d.date)
-  const ranked = mode === 'provider' ? snap.rankedProviders : snap.rankedModels
-  const perDay = mode === 'provider' ? (snap as any).perDayProvider : snap.perDayModel
+  const ranked = rankedOf(snap, mode)
+  const perDay = perDayOf(snap, mode)
 
   const series = ranked.map(model => ({
     name: model,

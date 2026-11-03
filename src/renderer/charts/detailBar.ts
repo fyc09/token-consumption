@@ -1,22 +1,34 @@
-// ECharts stacked bar for detail dialog — by model/provider, minute / hour modes
-import { DayDetail } from '../../shared/types'
+// ECharts stacked bar for detail dialog — 按 模型/供应商/Harness，分钟/小时模式
+import { DayDetail, DimKey, DimStats } from '../../shared/types'
 import { seriesColor } from '../composables/modelColor'
 
-type ViewMode = 'model' | 'provider'
+interface DimData {
+  stats: DimStats
+  hourly: Record<string, number[]>
+  minutely: Record<string, number[]>
+}
 
-function rankedList(detail: DayDetail, mode: ViewMode, snapRanked: string[]): string[] {
-  const data = mode === 'provider' ? detail.perProvider : detail.perModel
-  const hourly = mode === 'provider' ? detail.perProviderHourly : detail.perModelHourly
-  // Use global ranking order if applicable, otherwise local order
+function pick(detail: DayDetail, mode: DimKey): DimData {
+  if (mode === 'provider') {
+    return { stats: detail.perProvider, hourly: detail.perProviderHourly, minutely: detail.perProviderMinutely }
+  }
+  if (mode === 'harness') {
+    return { stats: detail.perHarness, hourly: detail.perHarnessHourly, minutely: detail.perHarnessMinutely }
+  }
+  return { stats: detail.perModel, hourly: detail.perModelHourly, minutely: detail.perModelMinutely }
+}
+
+function rankedList(detail: DayDetail, mode: DimKey, snapRanked: string[]): string[] {
+  const data = pick(detail, mode).stats
   const keys = Object.keys(data)
   const localRanked = keys.slice().sort((a, b) => data[b].total - data[a].total)
-  // Prefer global ranked order but filter to local keys
+  // 优先用全局排名，但只保留当前存在的键
   const global = snapRanked.filter(k => keys.includes(k))
   if (global.length > 0) return global.concat(localRanked.filter(k => !global.includes(k)))
   return localRanked
 }
 
-export function buildMinuteBar(detail: DayDetail, snapRanked: string[], mode: ViewMode = 'model') {
+export function buildMinuteBar(detail: DayDetail, snapRanked: string[], mode: DimKey = 'model') {
   const labels: string[] = []
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 5) {
@@ -24,7 +36,7 @@ export function buildMinuteBar(detail: DayDetail, snapRanked: string[], mode: Vi
     }
   }
 
-  const minutelyMap = mode === 'provider' ? detail.perProviderMinutely : detail.perModelMinutely
+  const minutelyMap = pick(detail, mode).minutely
   const ranked = rankedList(detail, mode, snapRanked)
 
   const series = ranked
@@ -84,10 +96,10 @@ export function buildMinuteBar(detail: DayDetail, snapRanked: string[], mode: Vi
   }
 }
 
-export function buildHourlyBar(detail: DayDetail, snapRanked: string[], mode: ViewMode = 'model') {
+export function buildHourlyBar(detail: DayDetail, snapRanked: string[], mode: DimKey = 'model') {
   const labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
 
-  const hourlyMap = mode === 'provider' ? detail.perProviderHourly : detail.perModelHourly
+  const hourlyMap = pick(detail, mode).hourly
   const ranked = rankedList(detail, mode, snapRanked)
 
   const series = ranked

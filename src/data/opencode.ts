@@ -36,6 +36,7 @@ export function loadOpencodeMessages(): RawMessage[] {
         ts,
         model: d.modelID || 'unknown',
         provider: d.providerID || 'unknown',
+        harness: 'opencode',
         input: inp, output: outp, cacheRead: cr, cacheWrite: cw, reasoning: rea,
         total: inp + outp + cr + cw + rea,
         calls: 1

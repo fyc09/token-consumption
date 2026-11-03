@@ -1,7 +1,6 @@
 // Generate CSV from DataSnapshot — minimal non-redundant format.
-// Core data: per-day, per-model, per-provider atomic rows.
-// Everything in the UI (model view, provider view, daily stats, heatmap)
-// can be reconstructed from this single table.
+// 原子行：(date, harness, model, provider) → 统计。
+// 从这张表可完整重建所有 UI 视图（模型/供应商/Harness 三个维度、每日汇总、热力图、详情）。
 import { DataSnapshot } from '../shared/types.js'
 
 function escape(v: string): string {
@@ -21,28 +20,30 @@ export function generateCSV(snap: DataSnapshot): string {
   lines.push(`# todayTotal,${snap.todayTotal}`)
   lines.push('')
 
-  // Header
-  lines.push('date,model,provider,calls,input,output,cache_read,cache_write,reasoning,total')
+  lines.push('date,harness,model,provider,calls,input,output,cache_read,cache_write,reasoning,total')
 
-  // Walk perDayModelProvider: date → model → provider → stats
-  for (const date of Object.keys(snap.perDayModelProvider).sort()) {
-    const byModel = snap.perDayModelProvider[date]
-    for (const model of Object.keys(byModel).sort()) {
-      const byProvider = byModel[model]
-      for (const provider of Object.keys(byProvider).sort()) {
-        const s = byProvider[provider]
-        lines.push([
-          date,
-          escape(model),
-          escape(provider),
-          s.calls,
-          s.input,
-          s.output,
-          s.cacheRead,
-          s.cacheWrite,
-          s.reasoning,
-          s.total
-        ].join(','))
+  for (const date of Object.keys(snap.perDayCombo).sort()) {
+    const byHarness = snap.perDayCombo[date]
+    for (const harness of Object.keys(byHarness).sort()) {
+      const byModel = byHarness[harness]
+      for (const model of Object.keys(byModel).sort()) {
+        const byProvider = byModel[model]
+        for (const provider of Object.keys(byProvider).sort()) {
+          const s = byProvider[provider]
+          lines.push([
+            date,
+            escape(harness),
+            escape(model),
+            escape(provider),
+            s.calls,
+            s.input,
+            s.output,
+            s.cacheRead,
+            s.cacheWrite,
+            s.reasoning,
+            s.total
+          ].join(','))
+        }
       }
     }
   }
